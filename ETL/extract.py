@@ -1,20 +1,27 @@
 from sqlalchemy import create_engine
+from datetime import datetime, timezone
 import requests
 import pandas as pd
 
 BASE_URL = "https://api.openweathermap.org/data/2.5/group?"
-API_KEY = open('api_key', 'r').read()
+
+API_KEY = open('api_key', 'r').read().strip()
+
 CITY_ID = 'id=703448,2643743,756135,3088171'
+
 UNITS = "metric"
 
-url = BASE_URL + CITY_ID + "&units=" + UNITS + "&appid" + API_KEY
+url = BASE_URL + CITY_ID + "&units=" + UNITS + "&appid=" + API_KEY
 
 data = requests.get(url).json()
 
-# Further normalize the 'weather' field to extract its data into separate columns
+# Normalize 'weather' field and expand it into separate columns
 weather_data = pd.json_normalize(data['list'], 'weather', ['coord', 'sys', 'main', 'visibility', 'wind', 'clouds', 'dt', 'id', 'name'], meta_prefix='meta.')
 
-# Flatten the DataFrame
+# Convert Unix timestamp to a human-readable date and time (UTC)
+weather_data['meta.dt'] = weather_data['meta.dt'].apply(lambda x: datetime.fromtimestamp(x, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S'))
+
+# Flatten the DataFrame by combining nested JSON fields
 df_expanded = pd.concat([
     weather_data,
     pd.json_normalize(weather_data['meta.coord']).add_prefix('coord.'),
@@ -24,10 +31,11 @@ df_expanded = pd.concat([
     pd.json_normalize(weather_data['meta.clouds']).add_prefix('clouds.')
 ], axis=1).drop(columns=['meta.coord', 'meta.sys', 'meta.main', 'meta.wind', 'meta.clouds'])
 
-#print(df_expanded)
+# Replace dots in column names with underscores
+df_expanded.columns = df_expanded.columns.str.replace('.', '_', regex=False)
 
-dbschema='public'
-engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/postgres',
+dbschema = 'stg'
+engine = create_engine('postgresql+psycopg2://etl:postgres@localhost:5432/dwh',
                        connect_args={'options': '-csearch_path={}'.format(dbschema)})
 
-df_expanded.to_sql('weather', engine, if_exists='append', index=False)
+df_expanded.to_sql('stg_weather', engine, if_exists='append', index=False)

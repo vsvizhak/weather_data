@@ -23,6 +23,6 @@ BEGIN
         clouds_all,
         sunrise,
         sunset
-    FROM stg.stg_weather_data;
+    FROM stg.weather_data;
 END;
-$$;
+$$

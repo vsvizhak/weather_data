@@ -1,4 +1,5 @@
-CREATE TABLE stg_weather_data (
+CREATE TABLE weather_data (
+    insert_dt               TIMESTAMP DEFAULT CURRENT_TIMESTAMP + INTERVAL '2 hours',
     weather_id              INTEGER,
     weather_main            VARCHAR(50),
     weather_description     VARCHAR(100),

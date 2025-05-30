@@ -1,0 +1,7 @@
+pandas
+requests
+dotenv
+sqlalchemy
+prefect
+boto3
+botocore

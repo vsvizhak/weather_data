@@ -1,9 +1,11 @@
 from dotenv import load_dotenv
 import os
 from sqlalchemy import create_engine, text
+import oracledb
 from datetime import datetime, timezone
 import requests
 import pandas as pd
+import logging
 
 load_dotenv()
 api_key = os.getenv("OPENWEATHER_API_KEY")
@@ -14,7 +16,6 @@ def load_data():
     CITY_ID = 'id=703448,2643743,756135,3088171'
     UNITS = "metric"
     url = BASE_URL + CITY_ID + "&units=" + UNITS + "&appid=" + api_key
-    print(url)
 
     data = requests.get(url).json()
 
@@ -62,8 +63,29 @@ def load_data():
 
     # Insert data to STG layer
     dbschema = 'stg'
-    engine = create_engine(db_creds,
-                        connect_args={'options': '-csearch_path={}'.format(dbschema)})
+    # engine = create_engine(db_creds,
+    #                     connect_args={'options': '-csearch_path={}'.format(dbschema)})
+
+    user = "ADMIN"
+    password = "Qahehyreb573/"
+    host = "adb.uk-london-1.oraclecloud.com"
+    port = 1522
+    service_name = "g641e06b314e952_dwh_high.adb.oraclecloud.com"
+    dsn = "dwh_high"
+
+
+
+    engine = create_engine(
+        f"oracle+oracledb://{user}:{password}@{dsn}",
+        connect_args={
+            "config_dir": "/Users/vasyl/study/weather_data/DB_APP/Wallet_DWH",  # <== твій шлях
+            "wallet_location": "/Users/vasyl/study/weather_data/DB_APP/Wallet_DWH",  # іноді треба теж
+            "wallet_password": "Qahehyreb573/"  # якщо wallet без пароля
+
+
+    }
+    )
+
     with engine.begin() as conn:
         result = conn.execute(text("INSERT INTO stg.weather_data_loads DEFAULT VALUES RETURNING load_id, load_date"))
         load_id, load_date = result.fetchone()
